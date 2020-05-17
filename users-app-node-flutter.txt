@@ -1,0 +1,368 @@
+Guia App de Usuarios con Node.js y Flutter
+Flutter-Node.js
+FrontEnd Flutter - Backend Node.js
+1-Creamos la carpeta Raiz del proyecto Users-app-node-flutter
+2-Creamos la carpeta Backend para el Server de Node.js
+3-Creamos el Proyecto de Node.js en Terminal
+npm init -y
+4-Instalaremos los modulos que necesitamos en Node.js
+-express, para crear el Server
+-mongoose, para interactuar con MongoDB
+-morgan, para monitorear por consola las peticiones que van llegando al Server
+-cors, para permitir comunicacion entre Servers
+-faker, para generar datos falsos para pruebas
+npm i express mongoose morgan cors faker
+5-Crearemos la carpeta src con archivos:
+*index.js (para iniciar el Server)
+*app.js (tendra el codigo de la app y su configuración)
+*database.js (para la configuración de la BBDD)
+*Carpeta routes (para las Rutas URI/ de la app)
+*Carpeta models (para definir los datos que voy a guardar en la BBDD)
+6-Dentro de app.js: 
+//Requerimos el Server
+const express = require('express')
+//lo guardamos en una Constante para usarla
+const app = express();
+//lo exportamos como modulo para ser usado en 
+//el archivo de configuracion de la app 
+module.exports = app;
+7-Dentro de index.js
+//llamamos las variables de entorno
+require('dotenv').config();
+//guardo en una constante el Server creado en app
+const app = require('./app');
+
+//podemos usar app.listen(4000, callback) para iniciar el Server
+//para que no realice un Callback lo iniciamos en una funcion
+async function main (){
+    //Server escucha en el PORT de Dotenv pero tardara un tiempo
+    await app.listen(process.env.PORT);
+    console.log('>>>>Server on port', process.env.PORT);
+}
+//iniciamos el server en terminal con node src/index.js
+main();
+8-agregamos en app.js los modulos morgan y cors
+//llamaremos al modulo Morgan para ver las rutas URI 
+//solicitadas en la termina
+const morgan = require('morgan');
+//llamaremos al modulo Cors para la comunicacion 
+//entre Servers
+const cors = require('cors');
+//configuraremos el modulo morgan en modo Dev, puede ser
+//tambien combined, common, short o tiny
+//nos muestra en terminal GET / 404 4.712 ms - 139
+app.use(morgan('dev'));
+//configuraremos el modulo Cors
+app.use(cors());
+9-en Carpeta Routes crearemos las Rutas URI de la app
+users.js
+//llamaremos solo el componente Router del modulo Express
+const { Router } = require('express');
+//guardaremos en una constante el componente o funcion
+//objeto donde definiremos las URI
+const router = Router();
+module.exports = router;
+10-agregaremos el Enrutador a la app en app.js
+//llamaremos el objeto Router que tendra las URI del Server
+app.use(require('./routes/users'));
+11-iniciamos MongoDB
+12-creamos la conexion en database.js
+//llamamos al modulo para la conexion con la BBDD
+const mongoose = require('mongoose')
+
+//creamos la constante para guardar el URI
+//llamo la variable desde .env
+//const MONGODB_URI = process.env.MONGODB_URI;
+//separando las cadenas de conexión
+//const USERS_APP_NODE_FLUTTER_MONGODB_HOST = process.env.NOTES_APP_CRUD_MONGODB_HOST;
+//const USERS_APP_NODE_FLUTTER_MONGODB_DATABASE = process.env.NOTES_APP_CRUD_MONGODB_DATABASE;
+//usando ES6
+const { USERS_APP_NODE_FLUTTER_MONGODB_HOST, USERS_APP_NODE_FLUTTER_MONGODB_DATABASE } = process.env;
+//concatenamos las variables de conexión
+//const MONGODB_URI = 'mongodb://${USERS_APP_NODE_FLUTTER_MONGODB_HOST}/${USERS_APP_NODE_FLUTTER_MONGODB_DATABASE}';
+const MONGODB_URI = 'mongodb://'+USERS_APP_NODE_FLUTTER_MONGODB_HOST+'/'+USERS_APP_NODE_FLUTTER_MONGODB_DATABASE;
+
+//creamos el metodo de conexion a la BBDD
+//si no existe la crea
+async function connect(){
+    await mongoose.connect(MONGODB_URI, {
+    //como el modulo usa MongoCli debemos ver las advertencias
+        useUnifiedTopology: true,
+        useNewUrlParser: true,
+        useCreateIndex:true
+
+    });
+    console.log('>>>>Database: Connected')
+    
+};    
+//lo exportamos de esta manera para poder importarlo como objeto nuevamente
+module.exports = { connect };
+13-agregamos en index.js
+//guardo el objeto creado en Database.js
+const { connect } = require('./database');
+ y en la funcion main
+    //Iniciamos la conexion a la BBDD
+    await connect();
+14-Crearemos el modelo User.js en models
+//llamaremos Schema y model de mongoose
+const { Schema, model } = require('mongoose');
+//Definiremos los datos que tendran los Users
+const UserSchema = new Schema({
+    firstName: String,
+    lastName: String,
+    //URI de la imagen usada como avatar
+    avatar: String
+});
+//exportaremos el Model para el Crud
+module.exports = model('User', UserSchema);
+15-en user.js agregaremos 2 rutas URI
+//Crearemos las Rutas
+router.get('/api/users', (req, res) => {
+    //a modo de prueba enviaremos un message
+    res.json('User list');
+});
+
+router.get('/api/users/create', ( req, res ) => {
+    res.json({message: '5 users created'});
+})
+16-agregaremos el Modelo y el modulo Faker para crear 5 usuarios
+cada vez que se visite la URI /api/users/create
+//Requeriremos el Modelo Users
+const User = require('../models/User');
+//Crearemos los datos de pruebas con el modulo Faker
+const faker = require('faker');
+//las URI quedaran asi
+//Crearemos las Rutas
+router.get('/api/users', async (req, res) => {
+    //a modo de prueba enviaremos un message
+   // res.json('User list');
+   const users = await User.find();
+   //mostraremos el arreglo con todos los Users dentro de Users
+   res.json({users});
+  });
+
+router.get('/api/users/create', async ( req, res ) => {
+   for (let i = 0; i < 5; i++ ){
+        await User.create({
+            firstName: faker.name.firstName(),
+            lastName: faker.name.lastName,
+            avatar: faker.image.avatar()
+        })
+   }
+    res.json({message: '5 users created'});
+})
+17-Una vez terminado el Api en el Backend
+iniciaremos el FrontEnd con Flutter
+previamente dejar corriendo el Server pero desde Terminal
+-abrimos otra terminal hasta la carpeta del Proyecto
+y creamos la app del FrontView con el comando 
+flutter create usersApp
+flutter trabaja desde el Procesador de Androind no usa 
+los winjects
+1-Descargamos el sdk stable de flutter
+2-Extraiga el archivo zip y coloque el contenido de flutter en la ubicación deseada de instalación para el Flutter SDK (ej. C:\src\flutter; no instale flutter en un directorio como C:\Program Files\ que requiere permisos de administrador).
+3-Localice el archivo flutter_console.bat dentro del directorio de flutter. Inícialo con doble clic.
+¡Ahora está todo listo para ejecutar los comandos de Flutter en la consola de Flutter!
+4-Desde la barra de busqueda en Inicio, escribe ‘env’ y selecciona Editar variables de entorno para tu cuenta
+Debajo de Variables de usuario verifica si existe una entrada llamada Path:
+Si la entrada existe, agrega la ruta completa a flutter\bin usando ; como separador de los valores existentes.
+Si la entrada no existe, crea una nueva variable de usuario llamada Path con la ruta completa flutter\bin como su valor
+5-Ejecutaremos flutter doctor
+Este comando verifica tu entorno y muestra un reporte del estado de tu instalación de Flutter. Verifica la salida con cuidado para otros programas que pudieras necesitar o tareas a realizar (mostradas en texto en negrita).
+7-Luego de solucionado las dependencias y complementos faltantes de la Instalacion
+Ejecutamos D:\Proyectos\users-app-node-flutter>flutter create usersapp
+para crear la carpeta usersapp con el Frontview con flutter
+8-Abrimos con el Ide dicha carpeta
+y encontramos en lib>main.dart un proyecto de prueba que muestra un boton que incrementa
+de 1 en 1 al pulsar
+//Eliminaremos carpetas y archivos que no vamos a usar:
+A)todo el contenido de main.dart dentro de lib
+B) en carpeta test, eliminaremos el widget_test.dart
+9-Comenzaremos a codificar la app desde lib\main.dart
+//importamos el paquete Material.dart
+//permite utilizar material design en la app movil
+import 'package:flutter/material.dart';
+
+//llamamos al main principal que siempre se va a ejecutar
+void main(){
+  //Ejecucion de la App
+  runApp(
+    //ejecutamos el widget MaterialApp que es la app de flutter
+    MaterialApp(
+      //Ventana de Inicio, principal, Home
+     //dentro especificamos que vamos a pintar
+      //usaremos el HomePage
+      home: HomePage(),
+
+    ),
+  );
+}
+
+//Widget el encargado de tener el State de la App
+//con esto empezaremos a diseñar nuestra ventana principal
+//heredado del Widget StatefulWidget
+class HomePage extends StatefulWidget{
+  //sobreescribimos  un metodo para crear y definir un State
+  @override
+  //Definiremos el nuevo State del componente del tipo 
+  _HomePageState createState() => _HomePageState();
+}
+//aca creamos una clase, definimos el State y definir como guardar los datos 
+class _HomePageState extends State<HomePage>{
+  //llamaremos al Metodo Build que muestra por pantalla
+  //puedo escribir los TypeDefs y su Contexto relacionado con la app en si
+  Widget build(BuildContext context){
+    //devolveremos un Contenedor para poder dividir el espacio en pantalla
+    //y agregamos lo que va a contener la ventana principal
+    //la Barra de la App con un Widget
+    return Scaffold(
+      appBar: AppBar(title: Text('User List'), 
+      ),);
+  }
+}
+10-Probaremos la App con la opcion Start Whitout Debbuging de la opcion Debug del Ide
+//donde elegiremos una AVD que ya tengamos instalada y el plugin correspondiente en el IDE
+//puede ser que la tengamos creada anteriormente con Android Studio tambien
+codigo completo del main.dart
+//importamos el paquete Material.dart
+//permite utilizar material design en la app movil
+import 'package:flutter/material.dart';
+//#agregaremos modulo HTTP de Dart en cualquier versión
+//en Dependencias del archivo  pubspec.yaml
+//http: any
+//importaremos el modulo HTTP
+import 'package:http/http.dart' as http;
+//para poder usar caracteristicas de codigo asincrono como async/await de js
+//podemos usar una libreria de dart
+import 'dart:async';
+//para poder convertir datos a json para mostrarlos en la interfaz
+import 'dart:convert';
+
+//llamamos al main principal que siempre se va a ejecutar
+void main(){
+  //Ejecucion de la App
+  runApp(
+    //ejecutamos el widget MaterialApp que es la app de flutter
+    MaterialApp(
+      //Ventana de Inicio, principal, Home
+     //dentro especificamos que vamos a pintar
+      //usaremos el HomePage
+      home: HomePage(),
+
+    ),
+  );
+}
+
+//Widget el encargado de tener el State de la App
+//con esto empezaremos a diseñar nuestra ventana principal
+//heredado del Widget StatefulWidget
+class HomePage extends StatefulWidget{
+  //sobreescribimos  un metodo para crear y definir un State
+  @override
+  //Definiremos el nuevo State del componente del tipo 
+  _HomePageState createState() => _HomePageState();
+}
+//aca creamos una clase, definimos el State y definir como guardar los datos 
+class _HomePageState extends State<HomePage>{
+  //definiremos un contenedor Map o una Lista
+  Map data;
+  //definimos una lista donde guardamos los datos convertidos
+  List usersData;
+  //Crearemos un metodo para obtener datos mediante peticion HTTP
+  //y los asignara al listado de este Widget
+  getUsers() async {
+    //hara peticion HTTP, traera los datos y los asignaremos
+    //al estado de este componente
+    //Dart ofrece peticiones HTTP
+    //http.Response  response = await http.get('http://localhost:4000/api/users');
+    //como el emulador AVD no usa el localhost debemos modificar la URI
+    http.Response  response = await http.get('http://10.0.2.2:4000/api/users');
+   
+    //Imprimiremos los datos por pantalla pero solo el response.body
+    //debugPrint(response.body);//lo vemos por consola
+    //convertimos los datos a json
+    data = json.decode(response.body);
+    //definiremos el State del App actualizando los datos del App
+    setState(() {
+      //elegimos solo los datos del arreglo Users
+      usersData = data['users'];
+    });
+  }
+  //para llamar a getUsers() llamaremos al metodo initState
+  @override
+  void initState(){
+    //heredaremos los metodos que ya existen en el Widget anterior
+    super.initState();
+    //apenas inicia la aplicacion hacemos lo siguiente
+    getUsers();
+
+  }
+  
+  
+  //llamaremos al Metodo Build que muestra por pantalla
+  //puedo escribir los TypeDefs y su Contexto relacionado con la app en si
+  Widget build(BuildContext context){
+    //devolveremos un Contenedor para poder dividir el espacion en pantalla
+    //y agregamos lo que va a contener la ventana principal
+    //la Barra de la App con un Widget
+    return Scaffold(
+      //Contenido del AppBar
+      appBar: AppBar(
+        title: Text('User List'),
+        //background color
+        backgroundColor: Colors.indigo[900],
+      ),
+      //Contenido del Body
+      //usaremos la List que obtuvimos de GetUsers()
+      body: ListView.builder(
+        //cuantos items vamos a pasar
+        //si la Lista es nula pondremos 0 sino el tamaño de la lista
+        itemCount: usersData == null ? 0 : usersData.length,
+        //que es lo que va a hacer con los datos
+        itemBuilder: (BuildContext context, int index){
+          //por cada item devolveremos un Card
+          return Card(
+            //widget hijo
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                //elementos hijo
+                children: <Widget>[
+                  //que vamos a pintar por pantalla
+                 //probamos con el id
+                  //Text("${usersData[index]["_id"]}")
+                  //agregamos el numero del index y lo estilizaremos con Add padding dentro de otro Widget
+                  Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Text(
+                      "$index", 
+                      style: TextStyle(
+                        fontSize: 20.0,
+                        fontWeight: FontWeight.w500
+                      ),
+                    ),  
+                  ),
+                  //le decimos que el avatar no esta en la App, es externo
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(usersData[index]['avatar']),
+                  ),
+                  //Agregaremos el nombre y el apellido en otro Widget
+                  Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Text(
+                      "${usersData[index]["firstName"]} ${usersData[index]["lastName"]}",
+                      style: TextStyle(
+                        fontSize: 20.0,
+                        fontWeight: FontWeight.w700
+                      )
+                    ),
+                  ),
+                ],
+              ),
+            )
+          );
+        },
+      ), //tomaremos los datos del API
+      );
+  }
+}
